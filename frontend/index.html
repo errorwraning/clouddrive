@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudDrive — 云盘</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ===== Auth Screen ===== -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="logo-icon"><i class="ti ti-cloud"></i></div>
+        <span>CloudDrive</span>
+      </div>
+
+      <!-- Login Form -->
+      <div id="login-form">
+        <div class="auth-title">欢迎回来</div>
+        <div class="auth-sub">登录您的账号以继续</div>
+        <div id="login-error" class="error-msg"></div>
+        <div class="field">
+          <label>邮箱</label>
+          <input type="email" id="login-email" placeholder="your@email.com" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input type="password" id="login-password" placeholder="••••••••" />
+        </div>
+        <button class="btn-primary" onclick="doLogin()">登录</button>
+        <div class="auth-switch">还没有账号？<a onclick="showRegister()">立即注册</a></div>
+      </div>
+
+      <!-- Register Form -->
+      <div id="register-form" style="display:none">
+        <div class="auth-title">创建账号</div>
+        <div class="auth-sub">免费开始使用 CloudDrive</div>
+        <div id="reg-error" class="error-msg"></div>
+        <div class="field">
+          <label>用户名</label>
+          <input type="text" id="reg-name" placeholder="您的姓名" />
+        </div>
+        <div class="field">
+          <label>邮箱</label>
+          <input type="email" id="reg-email" placeholder="your@email.com" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input type="password" id="reg-password" placeholder="至少6位" />
+        </div>
+        <button class="btn-primary" onclick="doRegister()">注册</button>
+        <div class="auth-switch">已有账号？<a onclick="showLogin()">立即登录</a></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== App Screen ===== -->
+  <div id="app-screen" class="screen">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i class="ti ti-cloud"></i></div>
+        <span>CloudDrive</span>
+      </div>
+
+      <div class="sidebar-nav">
+        <div class="nav-item active" id="nav-all" onclick="navTo('all')">
+          <i class="ti ti-layout-grid"></i> 全部文件
+        </div>
+        <div class="nav-item" id="nav-recent" onclick="navTo('recent')">
+          <i class="ti ti-clock"></i> 最近访问
+        </div>
+        <div class="nav-item" id="nav-shared" onclick="navTo('shared')">
+          <i class="ti ti-share"></i> 我的分享
+        </div>
+        <div class="nav-item" id="nav-trash" onclick="navTo('trash')">
+          <i class="ti ti-trash"></i> 回收站
+        </div>
+
+        <div class="nav-section">分类</div>
+        <div class="nav-item" id="nav-image" onclick="navTo('image')">
+          <i class="ti ti-photo"></i> 图片
+        </div>
+        <div class="nav-item" id="nav-video" onclick="navTo('video')">
+          <i class="ti ti-video"></i> 视频
+        </div>
+        <div class="nav-item" id="nav-doc" onclick="navTo('doc')">
+          <i class="ti ti-file-text"></i> 文档
+        </div>
+      </div>
+
+      <div class="sidebar-storage">
+        <div class="storage-label">存储空间</div>
+        <div class="storage-bar">
+          <div class="storage-fill" id="storage-fill" style="width:0%"></div>
+        </div>
+        <div class="storage-text" id="storage-text"></div>
+      </div>
+
+      <div class="sidebar-user" onclick="showUserMenu()">
+        <div class="user-avatar" id="user-avatar"></div>
+        <div>
+          <div class="user-name" id="user-name-disp"></div>
+          <div class="user-email" id="user-email-disp"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+      <div class="topbar">
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="search-box">
+          <i class="ti ti-search"></i>
+          <input type="text" placeholder="搜索文件..." id="search-input" oninput="doSearch()" />
+        </div>
+        <div class="view-toggle">
+          <button class="view-btn active" id="view-grid-btn" onclick="setView('grid')" title="网格视图">
+            <i class="ti ti-layout-grid"></i>
+          </button>
+          <button class="view-btn" id="view-list-btn" onclick="setView('list')" title="列表视图">
+            <i class="ti ti-list"></i>
+          </button>
+        </div>
+        <button class="topbar-btn" onclick="showNewFolder()">
+          <i class="ti ti-folder-plus"></i> 新建文件夹
+        </button>
+        <button class="topbar-btn primary" onclick="showUpload()">
+          <i class="ti ti-upload"></i> 上传
+        </button>
+      </div>
+
+      <div class="content" id="content-area"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)">
+        <div id="file-grid-view" class="file-grid show"></div>
+        <div id="file-list-view" class="file-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Upload Modal ===== -->
+  <div class="modal-overlay" id="upload-modal">
+    <div class="modal">
+      <div class="modal-title">上传文件</div>
+      <div class="upload-area" onclick="triggerFileInput()"
+           ondragover="event.preventDefault()"
+           ondrop="handleUploadDrop(event)">
+        <i class="ti ti-upload"></i>
+        <p>点击或拖拽文件到此处上传</p>
+        <span>支持任意格式</span>
+      </div>
+      <input type="file" id="file-input" multiple style="display:none" onchange="handleFileSelect(event)" />
+      <div class="upload-list" id="upload-list"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeUpload()">取消</button>
+        <button class="btn-confirm" onclick="doUpload()">开始上传</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== New Folder Modal ===== -->
+  <div class="modal-overlay" id="folder-modal">
+    <div class="modal">
+      <div class="modal-title">新建文件夹</div>
+      <div class="field">
+        <label>文件夹名称</label>
+        <input type="text" class="folder-input" id="folder-name" placeholder="新建文件夹" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('folder-modal')">取消</button>
+        <button class="btn-confirm" onclick="createFolder()">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Rename Modal ===== -->
+  <div class="modal-overlay" id="rename-modal">
+    <div class="modal">
+      <div class="modal-title">重命名</div>
+      <div class="field">
+        <label>名称</label>
+        <input type="text" class="folder-input" id="rename-input" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('rename-modal')">取消</button>
+        <button class="btn-confirm" onclick="doRename()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Context Menu ===== -->
+  <div class="ctx-menu" id="ctx-menu">
+    <div class="ctx-item" onclick="ctxDownload()">
+      <i class="ti ti-download"></i> 下载
+    </div>
+    <div class="ctx-item" onclick="ctxRename()">
+      <i class="ti ti-pencil"></i> 重命名
+    </div>
+    <div class="ctx-item" onclick="ctxShare()">
+      <i class="ti ti-share"></i> 分享
+    </div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item danger" onclick="ctxDelete()">
+      <i class="ti ti-trash"></i> 删除
+    </div>
+  </div>
+
+  <!-- ===== Drag & Drop Overlay ===== -->
+  <div class="upload-overlay" id="drag-overlay">
+    <i class="ti ti-upload"></i>
+    <p>松开鼠标上传文件</p>
+  </div>
+
+  <!-- ===== Toast Container ===== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

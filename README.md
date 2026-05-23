@@ -1,3 +1,9 @@
+#部署完后启动命令
+source venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+
+
+
 # CloudDrive 后端
 
 FastAPI + MySQL + 本地磁盘文件存储。

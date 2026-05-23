@@ -129,7 +129,7 @@ async def upload_file(
     # 流式写入磁盘
     actual_size = 0
     async with aiofiles.open(dest, "wb") as f:
-        while chunk := await file.read(1024 * 1024):  # 1 MB chunks
+        while chunk := await file.read(8 * 1024 * 1024):  # 1 MB chunks
             actual_size += len(chunk)
             if actual_size > settings.MAX_FILE_SIZE:
                 await f.close()

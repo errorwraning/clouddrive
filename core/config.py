@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 天
 
     # 文件存储
-    UPLOAD_DIR: str = "uploads"
+    #UPLOAD_DIR: str = "uploads"
+    UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
     MAX_FILE_SIZE: int = 2 * 1024 ** 3   # 2 GB
     USER_QUOTA: int = 5 * 1024 ** 3      # 5 GB
 

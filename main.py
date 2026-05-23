@@ -36,16 +36,12 @@ app.include_router(files.router)
 
 # ===== 托管前端静态文件 =====
 # 将前端 clouddrive/ 目录放到与本文件同级，自动托管
-#FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
-FRONTEND_DIR = r"C:\Users\ZMJ\Desktop\project\网盘\clouddrive\frontend"
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
+#FRONTEND_DIR = r"C:\Users\ZMJ\Desktop\project\网盘\clouddrive\frontend"
 
 if os.path.isdir(FRONTEND_DIR):
     #app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
-
-    @app.get("/", include_in_schema=False)
-    def serve_frontend():
-        return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 
 # ===== 健康检查 =====
@@ -61,5 +57,5 @@ if __name__ == "__main__":
         "main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=True,   # 开发模式热重载，生产环境去掉
+        reload=False,   # 开发模式热重载，生产环境去掉
     )

@@ -3,7 +3,7 @@
  * 后端地址：http://localhost:8000
  */
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = window.location.origin;
 
 // ===== App State =====
 const state = {
@@ -360,7 +360,10 @@ function doSearch() {
 
 // ===== Upload =====
 
+// ===== Upload Task Manager =====
+
 let pendingUploads = [];
+const uploadTasks = [];
 
 function showUpload() {
   pendingUploads = [];
@@ -374,9 +377,7 @@ function closeUpload() {
 }
 
 function triggerFileInput() { document.getElementById("file-input").click(); }
-
 function handleFileSelect(e) { addPendingFiles(Array.from(e.target.files)); }
-
 function handleUploadDrop(e) {
   e.preventDefault(); e.stopPropagation();
   addPendingFiles(Array.from(e.dataTransfer.files));
@@ -397,28 +398,141 @@ function renderPendingUploads() {
   `).join("");
 }
 
-async function doUpload() {
+function doUpload() {
   if (!pendingUploads.length) { toast("请选择要上传的文件", "error"); return; }
-
-  let successCount = 0;
-  for (const file of pendingUploads) {
-    const form = new FormData();
-    form.append("file", file);
-    try {
-      await api.upload(`/api/files/upload?path=${encodeURIComponent(state.currentPath)}`, form);
-      successCount++;
-    } catch (e) {
-      toast(`"${file.name}" 上传失败：${e.message}`, "error");
-    }
-  }
-
-  if (successCount > 0) {
-    toast(`成功上传 ${successCount} 个文件`, "success");
-  }
+  const files = [...pendingUploads];
+  const uploadPath = state.currentPath;
   closeUpload();
   pendingUploads = [];
-  updateStorage();
-  renderFiles();
+  document.getElementById("file-input").value = "";
+
+  files.forEach(file => {
+    const task = {
+      id: Date.now() + Math.random(),
+      file, path: uploadPath,
+      status: "uploading",
+      progress: 0, speed: 0, loaded: 0,
+      startTime: Date.now(),
+    };
+    uploadTasks.push(task);
+    startUploadTask(task);
+  });
+  showUploadPanel();
+}
+
+function startUploadTask(task) {
+  const form = new FormData();
+  form.append("file", task.file);
+  const xhr = new XMLHttpRequest();
+  task.xhr = xhr;
+
+  xhr.upload.addEventListener("progress", e => {
+    if (!e.lengthComputable) return;
+    const elapsed = (Date.now() - task.startTime) / 1000 || 0.001;
+    task.loaded   = e.loaded;
+    task.progress = Math.round((e.loaded / e.total) * 100);
+    task.speed    = e.loaded / elapsed;
+    renderUploadPanel();
+  });
+
+  xhr.addEventListener("load", () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      task.status = "done"; task.progress = 100;
+    } else {
+      task.status = "error";
+      try { task.errorMsg = JSON.parse(xhr.responseText).detail || "上传失败"; }
+      catch { task.errorMsg = "上传失败"; }
+    }
+    renderUploadPanel();
+    updateStorage();
+    renderFiles();
+  });
+
+  xhr.addEventListener("error", () => {
+    task.status = "error"; task.errorMsg = "网络错误";
+    renderUploadPanel();
+  });
+
+  xhr.open("POST", `${API_BASE}/api/files/upload?path=${encodeURIComponent(task.path)}`);
+  if (state.token) xhr.setRequestHeader("Authorization", `Bearer ${state.token}`);
+  xhr.send(form);
+}
+
+function showUploadPanel() {
+  let panel = document.getElementById("upload-panel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "upload-panel";
+    panel.className = "upload-panel show";
+    panel.innerHTML = `
+      <div class="upload-panel-header" onclick="toggleUploadPanel()">
+        <div class="upload-panel-title">
+          <i class="ti ti-cloud-upload"></i> 传输列表
+          <span class="badge" id="upload-badge">0</span>
+        </div>
+        <div class="upload-panel-actions">
+          <button class="upload-panel-btn" onclick="event.stopPropagation();clearDoneTasks()" title="清除已完成"><i class="ti ti-trash"></i></button>
+          <button class="upload-panel-btn" id="upload-panel-toggle-icon" title="折叠"><i class="ti ti-chevron-down"></i></button>
+        </div>
+      </div>
+      <div class="upload-panel-body" id="upload-panel-body"></div>
+    `;
+    document.body.appendChild(panel);
+  } else {
+    panel.classList.add("show");
+    panel.classList.remove("collapsed");
+  }
+  renderUploadPanel();
+}
+
+function toggleUploadPanel() {
+  const panel = document.getElementById("upload-panel");
+  const icon  = document.getElementById("upload-panel-toggle-icon");
+  if (!panel) return;
+  panel.classList.toggle("collapsed");
+  icon.innerHTML = panel.classList.contains("collapsed")
+    ? '<i class="ti ti-chevron-up"></i>'
+    : '<i class="ti ti-chevron-down"></i>';
+}
+
+function clearDoneTasks() {
+  uploadTasks.splice(0, uploadTasks.length, ...uploadTasks.filter(t => t.status === "uploading"));
+  if (!uploadTasks.length) {
+    const p = document.getElementById("upload-panel");
+    if (p) p.classList.remove("show");
+  } else renderUploadPanel();
+}
+
+function renderUploadPanel() {
+  const body  = document.getElementById("upload-panel-body");
+  const badge = document.getElementById("upload-badge");
+  if (!body) return;
+  const active = uploadTasks.filter(t => t.status === "uploading").length;
+  if (badge) badge.textContent = active > 0 ? active : uploadTasks.length;
+
+  body.innerHTML = uploadTasks.map(task => {
+    const statusIcon = task.status === "done"
+      ? '<i class="ti ti-circle-check" style="color:#22c55e;font-size:18px"></i>'
+      : task.status === "error"
+      ? '<i class="ti ti-circle-x" style="color:#ef4444;font-size:18px"></i>'
+      : '<i class="ti ti-loader" style="color:var(--blue-600);font-size:18px"></i>';
+
+    const metaText = task.status === "done"
+      ? `<span style="color:#22c55e">上传完成</span>`
+      : task.status === "error"
+      ? `<span style="color:#ef4444">${escHtml(task.errorMsg || "上传失败")}</span>`
+      : `<span>${task.progress}%</span><span>${formatSize(task.speed)}/s</span><span>${formatSize(task.loaded)} / ${formatSize(task.file.size)}</span>`;
+
+    return `<div class="upload-task ${task.status}">
+      <div class="upload-task-icon"><i class="ti ${iconName(guessType(task.file.name))}"></i></div>
+      <div class="upload-task-info">
+        <div class="upload-task-name">${escHtml(task.file.name)}</div>
+        <div class="upload-task-meta">${metaText}</div>
+        <div class="upload-task-bar-wrap"><div class="upload-task-bar" style="width:${task.progress}%"></div></div>
+      </div>
+      <div class="upload-task-status">${statusIcon}</div>
+    </div>`;
+  }).join("");
 }
 
 // ===== New Folder =====
